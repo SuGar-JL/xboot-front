@@ -4,7 +4,8 @@ const dict = {
         sex: [],
         messageType: [],
         priority: [],
-        leaveType: []
+        leaveType: [],
+        college: []
     },
     mutations: {
         // 设置值的改变方法
@@ -19,6 +20,9 @@ const dict = {
         },
         setLeaveType(state, list) {
             state.leaveType = list;
+        },
+        setCollege(state, list) {
+            state.college = list;
         },
     }
 };

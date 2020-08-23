@@ -37,12 +37,12 @@ export default {
   props: {
     multiple: {
       type: Boolean,
-      default: false
+      default: false,
     },
     placeholder: {
       type: String,
-      default: "点击选择部门"
-    }
+      default: "点击选择部门",
+    },
   },
   data() {
     return {
@@ -51,14 +51,14 @@ export default {
       searchKey: "",
       dataDep: [],
       selectDep: [],
-      department: []
+      department: [],
     };
   },
   methods: {
     initDepartmentData() {
-      initDepartment().then(res => {
+      initDepartment().then((res) => {
         if (res.success) {
-          res.result.forEach(function(e) {
+          res.result.forEach(function (e) {
             if (e.isParent) {
               e.loading = false;
               e.children = [];
@@ -73,9 +73,9 @@ export default {
       });
     },
     loadData(item, callback) {
-      loadDepartment(item.id).then(res => {
+      loadDepartment(item.id).then((res) => {
         if (res.success) {
-          res.result.forEach(function(e) {
+          res.result.forEach(function (e) {
             if (e.isParent) {
               e.loading = false;
               e.children = [];
@@ -93,10 +93,10 @@ export default {
       // 搜索部门
       if (this.searchKey) {
         this.depLoading = true;
-        searchDepartment({ title: this.searchKey }).then(res => {
+        searchDepartment({ title: this.searchKey }).then((res) => {
           this.depLoading = false;
           if (res.success) {
-            res.result.forEach(function(e) {
+            res.result.forEach(function (e) {
               if (e.status == -1) {
                 e.title = "[已禁用] " + e.title;
                 e.disabled = true;
@@ -112,7 +112,7 @@ export default {
     selectTree(v) {
       let ids = [],
         title = "";
-      v.forEach(e => {
+      v.forEach((e) => {
         ids.push(e.id);
         if (title == "") {
           title = e.title;
@@ -130,39 +130,39 @@ export default {
       this.initDepartmentData();
       this.$emit("on-change", this.departmentId);
     },
-    setData(ids, title){
+    setData(ids, title) {
       this.departmentId = ids;
       this.departmentTitle = title;
       this.$emit("on-change", this.departmentId);
-    }
+    },
   },
   created() {
     this.initDepartmentData();
-  }
+  },
 };
 </script>
 
 <style lang="less">
 .tree-bar {
-    max-height: 500px;
-    overflow: auto;
-    margin-top: 5px;
+  max-height: 500px;
+  overflow: auto;
+  margin-top: 5px;
 }
 
 .tree-bar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  width: 6px;
+  height: 6px;
 }
 
 .tree-bar::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    -webkit-box-shadow: inset 0 0 2px #d1d1d1;
-    background: #e4e4e4;
+  border-radius: 4px;
+  -webkit-box-shadow: inset 0 0 2px #d1d1d1;
+  background: #e4e4e4;
 }
 
 .ivu-tree .ivu-tree-empty {
-    margin-top: 10px;
-    font-size: 12px;
+  margin-top: 10px;
+  font-size: 12px;
 }
 </style>
 

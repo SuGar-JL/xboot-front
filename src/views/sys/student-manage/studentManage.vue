@@ -25,14 +25,19 @@
                   type="date"
                   format="yyyy-MM-dd"
                   clearable
-                  @on-change="selectDate"
+                  @on-change="selectBirthday"
                   placeholder="选择出生日期"
                   style="width: 150px"
                 ></DatePicker>
               </Form-item>
-              <Form-item label="学院" prop="college">
-                <!-- 学院选择组件 -->
-                <department-choose @on-change="handleSelectDep" style="width: 150px" ref="dep"></department-choose>
+              <Form-item label="学院" prop="collegeName">
+                <Select v-model="studentForm.collegeName" placeholder="请选择学院" style="width: 150px">
+                  <Option
+                    v-for="(item, i) in dictcollegeName"
+                    :key="i"
+                    :label="item.value"
+                  >{{item.title}}</Option>
+                </Select>
               </Form-item>
               <Form-item style="margin-left:-20px;" class="br">
                 <Button @click="handleSearch" type="primary" icon="ios-search">搜索</Button>
@@ -42,22 +47,9 @@
           </Row>
           <!-- 操作 -->
           <Row class="operation">
-            <Button @click="add" type="primary" icon="md-add">添加用户</Button>
+            <Button @click="add" type="primary" icon="md-add">添加学生</Button>
             <Button @click="delAll" icon="md-trash">批量删除</Button>
             <Button @click="getDataList" icon="md-refresh">刷新</Button>
-            <!-- <Dropdown @on-click="handleDropdown">
-              <Button>
-                更多操作
-                <Icon type="md-arrow-dropdown" />
-              </Button>
-              <DropdownMenu slot="list">
-                <DropdownItem name="refresh">刷新</DropdownItem>
-                <DropdownItem name="reset">重置用户密码</DropdownItem>
-                <DropdownItem name="exportData">导出所选数据</DropdownItem>
-                <DropdownItem name="exportAll">导出全部数据</DropdownItem>
-                <DropdownItem name="importData">导入数据(付费)</DropdownItem>
-              </DropdownMenu>
-            </Dropdown> -->
           </Row>
           <!-- 选择计数 -->
           <Row>
@@ -107,7 +99,7 @@
       :styles="{top: '30px'}"
     >
       <!-- 添加学生 -->
-      <Form ref="studentForm" :model="studentForm" :label-width="60" :rules="studentFormValidate">
+      <Form ref="studentForm" :model="studentForm" :label-width="70" :rules="studentFormValidate">
         <FormItem label="姓名" prop="name">
           <Input v-model="studentForm.name" autocomplete="off" />
         </FormItem>
@@ -122,7 +114,7 @@
             type="date"
             format="yyyy-MM-dd"
             clearable
-            @on-change="selectDate"
+            @on-change="selectBirthday"
             placeholder="选择出生日期"
             style="width: 150px"
           ></DatePicker>
@@ -130,16 +122,18 @@
         <Form-item label="头像" prop="avatar">
           <upload-pic-input v-model="studentForm.avatar"></upload-pic-input>
         </Form-item>
-        <!-- 做组件 -->
-        <Form-item label="所属学院">
-          <department-tree-choose @on-change="handleSelectDepTree" ref="depTree"></department-tree-choose>
-        </Form-item>
-        <FormItem label="年级" prop="type">
-          <Select v-model="studentForm.type" placeholder="请选择">
-            <Option :value="0">2000</Option>
-            <Option :value="1">2001</Option>
-            <Option :value="2">...</Option>
+        <Form-item label="所属学院" prop="collegeName">
+          <Select v-model="studentForm.collegeName" placeholder="请选择学院">
+            <Option
+              v-for="(item, i) in dictcollegeName"
+              :key="i"
+              :label="item.value"
+              :value="item.title"
+            >{{item.title}}</Option>
           </Select>
+        </Form-item>
+        <FormItem label="年级" prop="gradeName">
+          <grade-select-choose @on-change="handleSelectgradeName" ref="gName"></grade-select-choose>
         </FormItem>
       </Form>
       <div slot="footer">
@@ -152,84 +146,87 @@
 
 <script>
 import {
-  getUserListData,
+  getStudentListData,
   getAllRoleList,
-  addUser,
-  editUser,
-  enableUser,
-  disableUser,
-  deleteUser,
-  getAllUserData,
-  importUserData,
-  resetUserPass,
+  addStudent,
+  editStudent,
+  enableStudent,
+  disableStudent,
+  deleteStudent,
+  getAllStudentData,
+  importStudentData,
+  resetStudentPass,
 } from "@/api/index";
-// import expandRow from "./expand.vue";
-// import { validateMobile, validatePassword } from "@/libs/validate";
 import departmentChoose from "@/views/my-components/xboot/department-choose";
 import departmentTreeChoose from "@/views/my-components/xboot/department-tree-choose";
+import gradeSelectChoose from "@/views/my-components/xboot/grade-select-choose";
 import uploadPicInput from "@/views/my-components/xboot/upload-pic-input";
-// import checkPassword from "@/views/my-components/xboot/check-password";
-// 模版导入文件表数据
-import { userColumns, userData } from "@/libs/importTemplate";
-// 指定导出列数据
+import { StudentColumns, StudentData } from "@/libs/importTemplate";
 import { exportColumn } from "./exportColumn";
 import excel from "@/libs/excel";
 
 export default {
-  name: "user-manage",
+  name: "Student-manage",
   components: {
     // expandRow,
     departmentChoose,
     departmentTreeChoose,
+    gradeSelectChoose,
     uploadPicInput,
     // checkPassword,
   },
   data() {
     return {
       height: 510,
-      loading: true,//加载表格
-      
-      importLoading: false,//导入数据时的加载
-      loadingExport: true,//导出加载
-      exportModalVisible: false,//导出的对话框显示
-      importModalVisible: false,//导入的对话框显示
-      drop: false,//没地方用到
-      dropDownContent: "展开",//我应该用不到
-      dropDownIcon: "ios-arrow-down",//展开的按钮图标
+      loading: true, //加载表格
 
-      selectCount: 0,//选中表格数据数
+      importLoading: false, //导入数据时的加载
+      loadingExport: true, //导出加载
+      exportModalVisible: false, //导出的对话框显示
+      importModalVisible: false, //导入的对话框显示
+      drop: false, //没地方用到
+      dropDownContent: "展开", //我应该用不到
+      dropDownIcon: "ios-arrow-down", //展开的按钮图标
+
+      selectCount: 0, //选中表格数据数
       selectList: [],
+      //搜索用到的字段
       searchForm: {
         name: "",
         sex: "",
-        birthday: "",
-        college: "",
+        birthday: "asdsa",
+        collegeName: "",
         pageNumber: 1,
         pageSize: 10,
         sort: "createTime",
         order: "desc",
       },
-      selectDate: null,//选择时间
-      modalType: 0,//标记打开的对话框类型
-      studentModalVisible: false,//对话框是否显示
-      modalTitle: "",//对话框标题
-      studentForm: {//用在添加和编辑时的对话框
+      selectDate: null, //选择时间
+      modalType: 0, //标记打开的对话框类型（添加/编辑）
+      studentModalVisible: false, //对话框是否显示
+      modalTitle: "", //对话框标题
+      studentForm: {
+        //添加/编辑的表单字段
         name: "",
         sex: "",
-        departmentId: "",
-        departmentTitle: "",
+        birthday: "asdsad",
+        collegeName: "dsds",
+        gradeName: "",
       },
 
-      userRoles: [],
+      //用不到
+      StudentRoles: [],
       roleList: [],
       errorPass: "",
 
-      studentFormValidate: {//表单验证
-        name: [
-          { required: true, message: "姓名为空", trigger: "blur" },
-        ],
+      studentFormValidate: {
+        //表单验证
+        name: [{ required: true, message: "姓名为空", trigger: "blur" }],
+        sex: [{ required: true, message: "性别没选", trigger: "blur" }],
+        collegeName: [{ required: true, message: "学院没选", trigger: "blur" }],
+        gradeName: [{ required: true, message: "年级没选", trigger: "blur" }],
       },
-      submitLoading: false,//提交加载
+      submitLoading: false, //提交加载
       //表格的数据
       columns: [
         {
@@ -272,19 +269,19 @@ export default {
         },
         {
           title: "生日",
-          key: "createTime",
+          key: "birthday", /////////
           sortable: true,
           sortType: "desc",
           width: 120,
         },
         {
           title: "学院",
-          key: "departmentTitle",////
+          key: "collegeName", ////
           width: 120,
         },
         {
           title: "年级",
-          key: "departmentTitle",////
+          key: "gradeName", ////
           width: 120,
         },
         {
@@ -301,45 +298,6 @@ export default {
           align: "center",
           fixed: "right",
           render: (h, params) => {
-            let enableOrDisable = "";
-            if (params.row.status == 0) {
-              enableOrDisable = h(
-                "Button",
-                {
-                  props: {
-                    size: "small",
-                  },
-                  style: {
-                    marginRight: "5px",
-                  },
-                  on: {
-                    click: () => {
-                      this.disable(params.row);
-                    },
-                  },
-                },
-                "禁用"
-              );
-            } else {
-              enableOrDisable = h(
-                "Button",
-                {
-                  props: {
-                    type: "success",
-                    size: "small",
-                  },
-                  style: {
-                    marginRight: "5px",
-                  },
-                  on: {
-                    click: () => {
-                      this.enable(params.row);
-                    },
-                  },
-                },
-                "启用"
-              );
-            }
             return h("div", [
               h(
                 "Button",
@@ -359,7 +317,6 @@ export default {
                 },
                 "编辑"
               ),
-              enableOrDisable,
               h(
                 "Button",
                 {
@@ -379,6 +336,7 @@ export default {
           },
         },
       ],
+
       exportColumns: exportColumn,
       chooseColumns: [],
       filename: "用户数据",
@@ -386,20 +344,23 @@ export default {
       exportType: "",
       importTableData: [],
       importColumns: [],
+
       uploadfile: {
         name: "",
       },
-      tempColumns: userColumns,
-      tempData: userData,
+      tempColumns: StudentColumns,
+      tempData: StudentData,
       data: [],
       exportData: [],
       total: 0,
-      dictSex: this.$store.state.dict.sex,
+      dictSex: this.$store.state.dict.sex, //性别的数据字典
+      dictcollegeName: this.$store.state.dict.college,
     };
   },
   methods: {
     init() {
-      this.getUserList();
+      this.getStudentList(); /////
+
       // 初始化导出列数据
       let array = [];
       this.exportColumns.forEach((e) => {
@@ -420,34 +381,31 @@ export default {
     handleSelectDepTree(v) {
       this.studentForm.departmentId = v[0];
     },
+    handleSelectgradeName(v) {
+      this.studentForm.gradeName = v;
+    },
     handleSelectDep(v) {
       this.searchForm.departmentId = v;
     },
     changePage(v) {
       this.searchForm.pageNumber = v;
-      this.getUserList();
+      this.getStudentList();
       this.clearSelectAll();
     },
     changePageSize(v) {
       this.searchForm.pageSize = v;
-      this.getUserList();
+      this.getStudentList();
     },
-    selectDate(v) {
+    selectBirthday(v) {
       if (v) {
         this.searchForm.birthday = v;
+        this.studentForm.birthday = v;
       }
     },
-    getUserList() {
-      // 多条件搜索用户列表
+    getStudentList() {
+      // 多条件搜索学生列表
       this.loading = true;
-      // 避免后台默认值
-      if (!this.searchForm.type) {
-        this.searchForm.type = "";
-      }
-      if (!this.searchForm.status) {
-        this.searchForm.status = "";
-      }
-      getUserListData(this.searchForm).then((res) => {
+      getStudentListData(this.searchForm).then((res) => {
         this.loading = false;
         if (res.success) {
           this.data = res.result.content;
@@ -456,47 +414,55 @@ export default {
       });
     },
     handleSearch() {
+      //
       this.searchForm.pageNumber = 1;
       this.searchForm.pageSize = 10;
-      this.getUserList();
+      
+      this.getStudentList();
     },
     handleReset() {
+      //搜索表单重置
       this.$refs.searchForm.resetFields();
       this.searchForm.pageNumber = 1;
       this.searchForm.pageSize = 10;
       this.selectDate = null;
-      this.searchForm.startDate = "";
-      this.searchForm.endDate = "";
       this.$refs.dep.clearSelect();
       this.searchForm.departmentId = "";
       // 重新加载数据
-      this.getUserList();
+      this.getStudentList();
     },
     changeSort(e) {
+      //更改排序
       this.searchForm.sort = e.key;
       this.searchForm.order = e.order;
       if (e.order == "normal") {
         this.searchForm.order = "";
       }
-      this.getUserList();
+      this.getStudentList();
     },
+    /////////////////////////
     getRoleList() {
+      //获取角色列表
       getAllRoleList().then((res) => {
         if (res.success) {
           this.roleList = res.result;
         }
       });
     },
+
     handleDropdown(name) {
       if (name == "refresh") {
-        this.getUserList();
+        //刷新
+        this.getStudentList();
       } else if (name == "reset") {
+        //重置用户密码
         if (this.selectCount <= 0) {
           this.$Message.warning("您还未选择要重置密码的用户");
           return;
         }
         this.$refs.checkPass.show();
       } else if (name == "exportData") {
+        //导出选择的数据
         if (this.selectCount <= 0) {
           this.$Message.warning("您还未选择要导出的数据");
           return;
@@ -505,19 +471,22 @@ export default {
         this.exportModalVisible = true;
         this.exportTitle = "确认导出 " + this.selectCount + " 条数据(付费)";
       } else if (name == "exportAll") {
+        //导出所有数据
         this.exportType = "all";
         this.exportModalVisible = true;
         this.exportTitle = "确认导出全部 " + this.total + " 条数据(付费)";
-        getAllUserData().then((res) => {
+        getAllStudentData().then((res) => {
           if (res.success) {
             this.exportData = res.result;
           }
         });
       } else if (name == "importData") {
+        //导入数据
         this.importModalVisible = true;
       }
     },
     resetPass() {
+      //重置密码
       this.$Modal.confirm({
         title: "确认重置",
         content:
@@ -531,18 +500,19 @@ export default {
           });
           ids = ids.substring(0, ids.length - 1);
           this.$store.commit("setLoading", true);
-          resetUserPass({ ids: ids }).then((res) => {
+          resetStudentPass({ ids: ids }).then((res) => {
             this.$store.commit("setLoading", false);
             if (res.success) {
               this.$Message.success("操作成功");
               this.clearSelectAll();
-              this.getUserList();
+              this.getStudentList();
             }
           });
         },
       });
     },
     exportCustomData() {
+      //导出用户数据
       if (this.filename == "") {
         this.filename = "用户数据";
       }
@@ -573,6 +543,7 @@ export default {
       excel.export_array_to_excel(params);
     },
     beforeUploadImport(file) {
+      //上传导入前
       this.uploadfile = file;
       const fileExt = file.name.split(".").pop().toLocaleLowerCase();
       if (fileExt == "xlsx" || fileExt == "xls") {
@@ -608,28 +579,30 @@ export default {
       };
     },
     downloadTemple() {
+      //下载模板
       let title = [];
       let key = [];
-      userColumns.forEach((e) => {
+      StudentColumns.forEach((e) => {
         title.push(e.title);
         key.push(e.key);
       });
       const params = {
         title: title,
         key: key,
-        data: userData,
+        data: StudentData,
         autoWidth: true,
         filename: "导入用户数据模版",
       };
       excel.export_array_to_excel(params);
     },
     importData() {
+      //导入数据
       this.importLoading = true;
-      importUserData(this.importTableData).then((res) => {
+      importStudentData(this.importTableData).then((res) => {
         this.importLoading = false;
         if (res.success) {
           this.importModalVisible = false;
-          this.getUserList();
+          this.getStudentList();
           this.$Modal.info({
             title: "导入结果",
             content: res.message,
@@ -638,43 +611,34 @@ export default {
       });
     },
     cancelStudent() {
+      //取消学生
       this.studentModalVisible = false;
     },
     submitStudent() {
+      //提交学生
       this.$refs.studentForm.validate((valid) => {
         if (valid) {
           if (this.modalType == 0) {
-            // 添加用户 避免编辑后传入id
+            // 添加学生 避免编辑后传入id
             delete this.studentForm.id;
-            delete this.studentForm.status;
-            if (
-              this.studentForm.password == "" ||
-              this.studentForm.password == undefined
-            ) {
-              this.errorPass = "密码不能为空";
-              return;
-            }
-            if (this.studentForm.password.length < 6) {
-              this.errorPass = "密码长度不得少于6位";
-              return;
-            }
             this.submitLoading = true;
-            addUser(this.studentForm).then((res) => {
+            addStudent(this.studentForm).then((res) => {
               this.submitLoading = false;
               if (res.success) {
                 this.$Message.success("操作成功");
-                this.getUserList();
+                this.getStudentList();
                 this.studentModalVisible = false;
               }
             });
           } else {
             // 编辑
             this.submitLoading = true;
-            editUser(this.studentForm).then((res) => {
+            console.log("id:" + this.studentForm.id);
+            editStudent(this.studentForm).then((res) => {
               this.submitLoading = false;
               if (res.success) {
                 this.$Message.success("操作成功");
-                this.getUserList();
+                this.getStudentList();
                 this.studentModalVisible = false;
               }
             });
@@ -683,17 +647,20 @@ export default {
       });
     },
     handleUpload(v) {
+      //上传头像
       this.studentForm.avatar = v;
     },
     add() {
+      //添加学生
       this.modalType = 0;
-      this.modalTitle = "添加用户";
+      this.modalTitle = "添加学生";
       this.$refs.studentForm.resetFields();
       this.studentModalVisible = true;
     },
     edit(v) {
+      //编辑
       this.modalType = 1;
-      this.modalTitle = "编辑用户";
+      this.modalTitle = "编辑学生";
       this.$refs.studentForm.resetFields();
       // 转换null为""
       for (let attr in v) {
@@ -702,65 +669,67 @@ export default {
         }
       }
       let str = JSON.stringify(v);
+      console.log("str:" +str);
       let data = JSON.parse(str);
       this.studentForm = data;
-      this.$refs.depTree.setData([data.departmentId], data.departmentTitle);
-      let selectRolesId = [];
-      this.studentForm.roles.forEach(function (e) {
-        selectRolesId.push(e.id);
-      });
-      this.studentForm.roles = selectRolesId;
+      console.log("id:" + this.studentForm.id);
+      this.selectDate = this.studentForm.birthday;//日期绑定的是selectDate
+      this.$refs.gName.setData(data.gradeName);//用于将数据设置到子组件
       this.studentModalVisible = true;
     },
     enable(v) {
+      //启用
       this.$Modal.confirm({
         title: "确认启用",
         content: "您确认要启用用户 " + v.name + " ?",
         onOk: () => {
           this.$store.commit("setLoading", true);
-          enableUser(v.id).then((res) => {
+          enableStudent(v.id).then((res) => {
             this.$store.commit("setLoading", false);
             if (res.success) {
               this.$Message.success("操作成功");
-              this.getUserList();
+              this.getStudentList();
             }
           });
         },
       });
     },
     disable(v) {
+      //禁用
       this.$Modal.confirm({
         title: "确认禁用",
         content: "您确认要禁用用户 " + v.name + " ?",
         onOk: () => {
           this.$store.commit("setLoading", true);
-          disableUser(v.id).then((res) => {
+          disableStudent(v.id).then((res) => {
             this.$store.commit("setLoading", false);
             if (res.success) {
               this.$Message.success("操作成功");
-              this.getUserList();
+              this.getStudentList();
             }
           });
         },
       });
     },
     remove(v) {
+      //删除
       this.$Modal.confirm({
         title: "确认删除",
         content: "您确认要删除用户 " + v.name + " ?",
         onOk: () => {
           this.$store.commit("setLoading", true);
-          deleteUser(v.id).then((res) => {
+          deleteStudent(v.id).then((res) => {
             this.$store.commit("setLoading", false);
             if (res.success) {
               this.$Message.success("删除成功");
-              this.getUserList();
+              this.getStudentList();
             }
           });
         },
       });
     },
     dropDown() {
+      //展开
       if (this.drop) {
         this.dropDownContent = "展开";
         this.dropDownIcon = "ios-arrow-down";
@@ -771,14 +740,17 @@ export default {
       this.drop = !this.drop;
     },
     showSelect(e) {
+      //显示已选
       this.exportData = e;
       this.selectList = e;
       this.selectCount = e.length;
     },
     clearSelectAll() {
+      //取消全选
       this.$refs.table.selectAll(false);
     },
     delAll() {
+      //全删
       if (this.selectCount <= 0) {
         this.$Message.warning("您还未选择要删除的数据");
         return;
@@ -793,12 +765,12 @@ export default {
           });
           ids = ids.substring(0, ids.length - 1);
           this.$store.commit("setLoading", true);
-          deleteUser(ids).then((res) => {
+          deleteStudent(ids).then((res) => {
             this.$store.commit("setLoading", false);
             if (res.success) {
               this.$Message.success("删除成功");
               this.clearSelectAll();
-              this.getUserList();
+              this.getStudentList();
             }
           });
         },
@@ -806,6 +778,7 @@ export default {
     },
   },
   mounted() {
+    //挂载
     // 计算高度
     this.height = Number(document.documentElement.clientHeight - 230);
     this.init();
@@ -814,5 +787,5 @@ export default {
 };
 </script>
 <style lang="less">
-@import "./userManage.less";
+@import "./StudentManage.less";
 </style>

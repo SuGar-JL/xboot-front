@@ -27,6 +27,11 @@ dictUtil.initDictData = function (vm) {
             vm.$store.commit("setLeaveType", res.result);
         }
     });
+    axios.get(getDictData + "college").then(res => {
+        if(res.success){
+            vm.$store.commit("setCollege", res.result);
+        }
+    });
 };
 
 export default dictUtil;

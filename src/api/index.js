@@ -520,3 +520,23 @@ export const getEntityData = (path, params) => {
 export const base64Upload = (params) => {
     return postRequest('/upload/file', params)
 }
+
+
+// 获取学生数据 多条件
+export const getStudentListData = (params) => {
+    return getRequest('/student/getByCondition', params)
+}
+
+// 添加学生
+export const addStudent = (params) => {
+    return postRequest('/student/save', params)
+}
+// 编辑学生
+export const editStudent = (params) => {
+    return putRequest('/student/update', params)
+}
+
+// 删除学生
+export const deleteStudent = (ids, params) => {
+    return deleteRequest(`/student/delByIds/${ids}`, params)
+}
